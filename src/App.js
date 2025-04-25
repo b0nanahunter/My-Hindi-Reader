@@ -1,57 +1,38 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import jwt_decode from "jwt-decode";
 
 function App() {
-  const [text, setText] = useState("");
-  const [selectedWords, setSelectedWords] = useState([]);
+  const [user, setUser] = useState(null);
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setText(reader.result);
-      };
-      reader.readAsText(file);
-    }
-  };
+  useEffect(() => {
+    window.google.accounts.id.initialize({
+      client_id: "719213031513-fo5i0ai9qhu5aru7mnbffc5a3p9ccov7.apps.googleusercontent.com",
+      callback: handleCredentialResponse
+    });
 
-  const handleWordClick = (word) => {
-    if (!selectedWords.includes(word)) {
-      setSelectedWords([...selectedWords, word]);
-    }
-  };
+    window.google.accounts.id.renderButton(
+      document.getElementById("googleSignInDiv"),
+      { theme: "outline", size: "large" }
+    );
+  }, []);
 
-  const renderText = () => {
-    return text.split(/\s+/).map((word, idx) => (
-      <span
-        key={idx}
-        onClick={() => handleWordClick(word)}
-        style={{
-          cursor: "pointer",
-          backgroundColor: selectedWords.includes(word) ? "yellow" : "transparent",
-        }}
-      >
-        {word + " "}
-      </span>
-    ));
+  const handleCredentialResponse = (response) => {
+    const userObject = jwt_decode(response.credential);
+    setUser(userObject);
   };
 
   return (
-    <div style={{ padding: 20, maxWidth: 800, margin: "0 auto" }}>
+    <div style={{ padding: 20 }}>
       <h1>My Hindi Reader</h1>
-      <input type="file" accept=".txt" onChange={handleFileUpload} />
-      <div style={{ marginTop: 20, padding: 10, border: "1px solid #ccc", minHeight: 200 }}>
-        {renderText()}
-      </div>
-      <div style={{ marginTop: 20 }}>
-        <h2>📘 Словарь</h2>
-        <ul>
-          {selectedWords.map((word, index) => (
-            <li key={index}>{word}</li>
-          ))}
-        </ul>
-      </div>
+      {!user && <div id="googleSignInDiv"></div>}
+      {user && (
+        <div>
+          <p>Привет, {user.name}!</p>
+          <p>Email: {user.email}</p>
+          <img src={user.picture} alt="user" style={{ borderRadius: "50%" }} />
+        </div>
+      )}
     </div>
   );
 }
