@@ -1,7 +1,1 @@
-
-body {
-  font-family: sans-serif;
-  margin: 0;
-  padding: 0;
-  background-color: #f4f4f4;
-}
+body { font-family: sans-serif; margin: 0; padding: 20px; background-color: #f9f9f9; } pre { background: #eee; padding: 10px; font-size: 14px; white-space: pre-wrap; }
