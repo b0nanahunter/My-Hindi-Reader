@@ -1,141 +1,88 @@
 
-import { useEffect, useState } from "react";
-import jwt_decode from "jwt-decode";
-
-const CLIENT_ID = "719213031513-fo5i0ai9qhu5aru7mnbffc5a3p9ccov7.apps.googleusercontent.com";
-const SCOPES = "https://www.googleapis.com/auth/drive.appdata";
+import { useState } from "react";
+import { saveAs } from 'file-saver';
+import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun } from "docx";
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [dictionary, setDictionary] = useState([]);
-  const [fileId, setFileId] = useState(null);
-  const [logs, setLogs] = useState([]);
+  const [text, setText] = useState("");
+  const [words, setWords] = useState([]);
 
-  const log = (msg) => setLogs((prev) => [...prev, msg]);
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  useEffect(() => {
-    window.google.accounts.id.initialize({
-      client_id: CLIENT_ID,
-      callback: handleCredentialResponse
-    });
-
-    window.google.accounts.id.renderButton(
-      document.getElementById("googleSignInDiv"),
-      { theme: "outline", size: "large" }
-    );
-  }, []);
-
-  const handleCredentialResponse = async (response) => {
-    const userObject = jwt_decode(response.credential);
-    setUser(userObject);
-    log("✅ Авторизация: " + userObject.email);
-
-    await gapi.load("client", async () => {
-      await gapi.client.init({
-        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
-      });
-
-      const tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (resp) => {
-          if (resp.access_token) {
-            setToken(resp.access_token);
-            gapi.client.setToken({ access_token: resp.access_token });
-            log("🔐 Токен доступа получен");
-            loadOrCreateFile();
-          } else {
-            log("❌ Ошибка получения токена");
-          }
-        }
-      });
-
-      tokenClient.requestAccessToken();
-    });
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setText(event.target.result);
+    };
+    reader.readAsText(file);
   };
 
-  const loadOrCreateFile = async () => {
+  const handlePaste = async () => {
     try {
-      log("🔍 Ищем файл dictionary.json...");
-      const res = await gapi.client.drive.files.list({
-        spaces: "appDataFolder",
-        fields: "files(id, name)",
-        q: "name='dictionary.json'"
-      });
-
-      if (res.result.files.length > 0) {
-        const file = res.result.files[0];
-        setFileId(file.id);
-        const content = await gapi.client.drive.files.get({
-          fileId: file.id,
-          alt: "media"
-        });
-        setDictionary(JSON.parse(content.body));
-        log("📄 Файл найден и загружен");
-      } else {
-        log("📄 Файл не найден, создаём...");
-        const file = await gapi.client.drive.files.create({
-          resource: {
-            name: "dictionary.json",
-            mimeType: "application/json",
-            parents: ["appDataFolder"]
-          },
-          media: {
-            mimeType: "application/json",
-            body: JSON.stringify([])
-          },
-          fields: "id"
-        });
-        setFileId(file.result.id);
-        setDictionary([]);
-        log("✅ Файл создан");
-      }
+      const clipboardText = await navigator.clipboard.readText();
+      setText(clipboardText);
     } catch (err) {
-      log("❌ Ошибка при загрузке/создании: " + JSON.stringify(err));
+      alert("Ошибка чтения буфера обмена");
     }
   };
 
-  const saveDictionary = async (updatedDict) => {
-    try {
-      await gapi.client.request({
-        path: `/upload/drive/v3/files/${fileId}`,
-        method: "PATCH",
-        params: { uploadType: "media" },
-        body: JSON.stringify(updatedDict)
-      });
-      setDictionary(updatedDict);
-      log("💾 Словарь сохранён");
-    } catch (err) {
-      log("❌ Ошибка сохранения: " + JSON.stringify(err));
+  const handleWordSelect = () => {
+    const selected = window.getSelection().toString().trim();
+    if (selected && !words.includes(selected)) {
+      setWords([...words, selected]);
     }
   };
 
-  const addExampleWord = () => {
-    const updated = [...dictionary, {
-      word: "समाज",
-      translation: "общество",
-      sentence: "भारतीय समाज बहुत विविध है।",
-      source: "ईदगाह",
-      repetition: {
-        day1: false, day2: false, day3: false, day4: false,
-        day5: false, day6: false, day7: false, week2: false, week4: false
-      }
-    }];
-    saveDictionary(updated);
+  const handleDownloadDocx = async () => {
+    const rows = words.map(word => new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph(word)] }),
+        new TableCell({ children: [new Paragraph("Перевод")] }),
+        new TableCell({ children: [new Paragraph("Предложение из текста")] }),
+        new TableCell({ children: [new Paragraph("Источник")] })
+      ]
+    }));
+
+    const table = new Table({
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({ children: [new Paragraph("Слово")] }),
+            new TableCell({ children: [new Paragraph("Перевод")] }),
+            new TableCell({ children: [new Paragraph("Пример")] }),
+            new TableCell({ children: [new Paragraph("Источник")] }),
+          ]
+        }),
+        ...rows
+      ]
+    });
+
+    const doc = new Document({ sections: [{ children: [table] }] });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, "словари.docx");
   };
 
   return (
     <div>
-      <h1>My Hindi Reader (Final)</h1>
-      {!user && <div id="googleSignInDiv"></div>}
-      {user && (
-        <>
-          <button onClick={addExampleWord} disabled={!fileId}>➕ Добавить слово</button>
-          <h3>Логи:</h3>
-          <pre>{logs.join("\n")}</pre>
-        </>
-      )}
+      <h1>My Hindi Reader (Локальная версия)</h1>
+      <button onClick={handlePaste}>📋 Вставить текст из буфера</button>
+      <input type="file" accept=".txt,.docx" onChange={handleFileUpload} />
+      <textarea
+        value={text}
+        onMouseUp={handleWordSelect}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Здесь будет ваш текст..."
+      />
+      <div>
+        <h3>Выбранные слова:</h3>
+        <ul>
+          {words.map((w, i) => <li key={i}>{w}</li>)}
+        </ul>
+      </div>
+      <button onClick={handleDownloadDocx} disabled={words.length === 0}>
+        📥 Скачать словарь (.docx)
+      </button>
     </div>
   );
 }

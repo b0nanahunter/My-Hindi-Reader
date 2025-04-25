@@ -1,13 +1,14 @@
 
 {
-  "name": "my-hindi-reader-final-auth",
+  "name": "my-hindi-reader-local",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-scripts": "5.0.1",
-    "jwt-decode": "^3.1.2"
+    "file-saver": "^2.0.5",
+    "docx": "^7.2.1"
   },
   "scripts": {
     "start": "react-scripts start",
