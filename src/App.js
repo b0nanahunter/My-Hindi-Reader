@@ -9,6 +9,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [dictionary, setDictionary] = useState([]);
   const [fileId, setFileId] = useState(null);
+  const [driveReady, setDriveReady] = useState(false);
 
   useEffect(() => {
     window.google.accounts.id.initialize({
@@ -25,17 +26,19 @@ function App() {
   const handleCredentialResponse = (response) => {
     const userObject = jwt_decode(response.credential);
     setUser(userObject);
-    gapi.load("client", initializeDriveClient);
+    gapi.load("client:auth2", () => {
+      gapi.client.init({
+        clientId: CLIENT_ID,
+        scope: SCOPES
+      });
+    });
   };
 
-  const initializeDriveClient = async () => {
-    await gapi.client.init({
-      apiKey: "",
-      clientId: CLIENT_ID,
-      discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-      scope: SCOPES,
-    });
-    gapi.auth2.getAuthInstance().signIn().then(loadOrCreateFile);
+  const connectDrive = async () => {
+    const authInstance = gapi.auth2.getAuthInstance();
+    await authInstance.signIn();
+    setDriveReady(true);
+    loadOrCreateFile();
   };
 
   const loadOrCreateFile = async () => {
@@ -108,7 +111,12 @@ function App() {
     <div style={{ padding: 20 }}>
       <h1>My Hindi Reader</h1>
       {!user && <div id="googleSignInDiv"></div>}
-      {user && (
+      {user && !driveReady && (
+        <button onClick={connectDrive}>
+          📁 Подключить Google Drive
+        </button>
+      )}
+      {user && driveReady && (
         <div>
           <p>Добро пожаловать, {user.name}</p>
           <button onClick={addExampleWord}>➕ Добавить слово «समाज»</button>

@@ -1,4 +1,5 @@
 
-# My Hindi Reader (Google Drive Sync)
+# My Hindi Reader (Google Drive Sync Fixed)
 
-Версия сайта с авторизацией Google и синхронизацией словаря в Google Drive (appDataFolder).
+Сайт с авторизацией через Google и синхронизацией словаря в Google Drive.
+Теперь с отдельной кнопкой "Подключить Google Drive" после входа.
