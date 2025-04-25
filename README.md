@@ -1,4 +1,4 @@
 
-# My Hindi Reader (with Google Auth)
+# My Hindi Reader (Google Drive Sync)
 
-Сайт для изучения хинди с авторизацией через Google и возможностью облачного хранения словаря.
+Версия сайта с авторизацией Google и синхронизацией словаря в Google Drive (appDataFolder).

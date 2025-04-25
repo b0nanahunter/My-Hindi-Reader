@@ -2,12 +2,17 @@
 import { useEffect, useState } from "react";
 import jwt_decode from "jwt-decode";
 
+const CLIENT_ID = "719213031513-fo5i0ai9qhu5aru7mnbffc5a3p9ccov7.apps.googleusercontent.com";
+const SCOPES = "https://www.googleapis.com/auth/drive.appdata";
+
 function App() {
   const [user, setUser] = useState(null);
+  const [dictionary, setDictionary] = useState([]);
+  const [fileId, setFileId] = useState(null);
 
   useEffect(() => {
     window.google.accounts.id.initialize({
-      client_id: "719213031513-fo5i0ai9qhu5aru7mnbffc5a3p9ccov7.apps.googleusercontent.com",
+      client_id: CLIENT_ID,
       callback: handleCredentialResponse
     });
 
@@ -20,6 +25,83 @@ function App() {
   const handleCredentialResponse = (response) => {
     const userObject = jwt_decode(response.credential);
     setUser(userObject);
+    gapi.load("client", initializeDriveClient);
+  };
+
+  const initializeDriveClient = async () => {
+    await gapi.client.init({
+      apiKey: "",
+      clientId: CLIENT_ID,
+      discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+      scope: SCOPES,
+    });
+    gapi.auth2.getAuthInstance().signIn().then(loadOrCreateFile);
+  };
+
+  const loadOrCreateFile = async () => {
+    const res = await gapi.client.drive.files.list({
+      spaces: "appDataFolder",
+      fields: "files(id, name)",
+      q: "name='dictionary.json'"
+    });
+
+    if (res.result.files.length > 0) {
+      const file = res.result.files[0];
+      setFileId(file.id);
+      const content = await gapi.client.drive.files.get({
+        fileId: file.id,
+        alt: "media"
+      });
+      setDictionary(JSON.parse(content.body));
+    } else {
+      const file = await gapi.client.drive.files.create({
+        resource: {
+          name: "dictionary.json",
+          mimeType: "application/json",
+          parents: ["appDataFolder"]
+        },
+        media: {
+          mimeType: "application/json",
+          body: JSON.stringify([])
+        },
+        fields: "id"
+      });
+      setFileId(file.result.id);
+      setDictionary([]);
+    }
+  };
+
+  const saveDictionary = async (updatedDict) => {
+    await gapi.client.request({
+      path: `/upload/drive/v3/files/${fileId}`,
+      method: "PATCH",
+      params: {
+        uploadType: "media"
+      },
+      body: JSON.stringify(updatedDict)
+    });
+    setDictionary(updatedDict);
+  };
+
+  const addExampleWord = () => {
+    const updated = [...dictionary, {
+      word: "समाज",
+      translation: "общество",
+      sentence: "भारतीय समाज बहुत विविध है।",
+      source: "ईदगाह",
+      repetition: {
+        day1: false,
+        day2: false,
+        day3: false,
+        day4: false,
+        day5: false,
+        day6: false,
+        day7: false,
+        week2: false,
+        week4: false
+      }
+    }];
+    saveDictionary(updated);
   };
 
   return (
@@ -28,9 +110,11 @@ function App() {
       {!user && <div id="googleSignInDiv"></div>}
       {user && (
         <div>
-          <p>Привет, {user.name}!</p>
-          <p>Email: {user.email}</p>
-          <img src={user.picture} alt="user" style={{ borderRadius: "50%" }} />
+          <p>Добро пожаловать, {user.name}</p>
+          <button onClick={addExampleWord}>➕ Добавить слово «समाज»</button>
+          <pre style={{ whiteSpace: 'pre-wrap', background: '#eee', padding: 10, marginTop: 20 }}>
+            {JSON.stringify(dictionary, null, 2)}
+          </pre>
         </div>
       )}
     </div>
