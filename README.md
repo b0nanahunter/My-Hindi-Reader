@@ -1,3 +1,4 @@
-# My Hindi Reader Debug
 
-Версия с отладочной панелью — пошаговые логи подключения к Google Drive.
+# My Hindi Reader (Final)
+
+Исправленная авторизация через Google Identity Services без использования устаревшей библиотеки gapi.auth2.
